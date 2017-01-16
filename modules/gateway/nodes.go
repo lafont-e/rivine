@@ -21,6 +21,8 @@ var (
 func (g *Gateway) addNode(addr modules.NetAddress) error {
 	if addr == g.myAddr {
 		return errOurAddress
+	} else if g.isMyLocalAddr(addr) != nil {
+		return errOurAddress
 	} else if _, exists := g.nodes[addr]; exists {
 		return errNodeExists
 	} else if addr.IsStdValid() != nil {
@@ -33,7 +35,7 @@ func (g *Gateway) addNode(addr modules.NetAddress) error {
 }
 
 // managedAddUntrustedNode adds an address to the set of nodes on the network, but
-// first verifies that there is a reachable node at the provided address.
+// first verifies that there is a reachable node at the provided address.9
 func (g *Gateway) managedAddUntrustedNode(addr modules.NetAddress) error {
 	// Performing the ping during testing does not work.
 	if build.Release == "testing" {
@@ -186,7 +188,7 @@ func (g *Gateway) permanentNodePurger(closeChan chan struct{}) {
 
 	for {
 		// Start by sleeping for 10 minutes. This means that no nodes will be
-		// purged for the first 10 minutes that Sia is running, and that any
+		// purged for the first 10 minutes that Rivine is running, and that any
 		// failures to get nodes will be met by 10 minutes of waiting.
 		//
 		// At most one node will be contacted every 10 minutes. This minimizes
@@ -204,7 +206,7 @@ func (g *Gateway) permanentNodePurger(closeChan chan struct{}) {
 		node, err := g.randomNode()
 		g.mu.RUnlock()
 		if err == errNoNodes {
-			// errNoNodes is a common error that will be resovled by the
+			// errNoNodes is a common error that will be resolved by the
 			// bootstrap process.
 			continue
 		} else if err != nil {

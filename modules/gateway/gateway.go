@@ -158,9 +158,9 @@ var (
 
 // Gateway implements the modules.Gateway interface.
 type Gateway struct {
-	listener net.Listener
-	myAddr   modules.NetAddress
-	port     string
+	listener    net.Listener
+	myAddr      modules.NetAddress
+	port        string
 
 	// handlers are the RPCs that the Gateway can handle.
 	//

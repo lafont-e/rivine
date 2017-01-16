@@ -68,6 +68,8 @@ func (g *Gateway) threadedLearnHostname() {
 		return
 	}
 
+	//g.myLocalAddr = d.getInternalIP()
+
 	g.mu.RLock()
 	addr := modules.NetAddress(net.JoinHostPort(host, g.port))
 	g.mu.RUnlock()
@@ -81,6 +83,22 @@ func (g *Gateway) threadedLearnHostname() {
 	g.mu.Unlock()
 
 	g.log.Println("INFO: our address is", addr)
+
+}
+
+func (g *Gateway) isMyLocalAddr(addrCheck modules.NetAddress) error {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return err
+	}
+	for _, addr := range addrs {
+		ipaddr, _, _ := net.ParseCIDR(addr.String())
+		if modules.NetAddress(net.JoinHostPort(ipaddr.String(), g.port)) == addrCheck {
+			g.log.Println("INFO: address exist as local addr", addr)
+			return errors.New("address is local address")
+		}
+	}
+	return nil
 }
 
 // threadedForwardPort adds a port mapping to the router.

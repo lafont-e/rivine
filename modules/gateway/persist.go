@@ -18,7 +18,7 @@ const (
 // persistMetadata contains the header and version strings that identify the
 // gateway persist file.
 var persistMetadata = persist.Metadata{
-	Header:  "Sia Node List",
+	Header:  "Rivine Node List",
 	Version: "0.3.3",
 }
 
