@@ -23,7 +23,16 @@ type smuxSession struct {
 
 func (s smuxSession) Accept() (net.Conn, error) { return s.sess.AcceptStream() }
 func (s smuxSession) Open() (net.Conn, error)   { return s.sess.OpenStream() }
-func (s smuxSession) Close() error              { return s.sess.Close() }
+func (s smuxSession) Close() error {
+	err := s.sess.Close()
+	// errBrokenPipe is returned in the Close function,
+	// in case the stream is already closed,
+	// in which case we simply wish to ignore the error.
+	if err == nil || err.Error() == "broken pipe" {
+		return nil
+	}
+	return err
+}
 
 func newSmuxServer(conn net.Conn) streamSession {
 	sess, err := smux.Server(conn, nil) // default config means no error is possible
