@@ -141,6 +141,11 @@ func New(gateway modules.Gateway, bootstrap bool, persistDir string) (*Consensus
 		return nil, err
 	}
 
+	// TODO: ENSURE INITIAL ADDRESSES ARE SET HERE
+	// Ensure that the intial addresses are marked as authorized
+	// This needs to be done now or they might cause blocks to get
+	// rejected during the IBD
+
 	go func() {
 		// Sync with the network. Don't sync if we are testing because
 		// typically we don't have any mock peers to synchronize with in
@@ -240,6 +245,15 @@ func (cs *ConsensusSet) ChildTarget(id types.BlockID) (target types.Target, exis
 // Close safely closes the block database.
 func (cs *ConsensusSet) Close() error {
 	return cs.tg.Stop()
+}
+
+// IsAuthorizedAddress checks if an address is confirmed to be authorized.
+func (cs *ConsensusSet) IsAuthorizedAddress(address types.UnlockHash) (valid bool) {
+	_ = cs.db.View(func(tx *bolt.Tx) error {
+		valid = isAuthorizedAddress(tx, address)
+		return nil
+	})
+	return valid
 }
 
 // managedCurrentBlock returns the latest block in the heaviest known blockchain.

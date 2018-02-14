@@ -158,6 +158,22 @@ func TestIntegrationCheckMinerFees(t *testing.T) {
 	// TODO: fill the pool up all the way and try again.
 }
 
+// TestIntegrationCheckAddresses tests the checkMinerFees method of the transaction pool
+func TestIntegrationCheckAddresses(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+	// Create the transaction pool tester
+	tpt, err := createTpoolTester("TestIntegrationCheckAddresses")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tpt.Close()
+
+	// TODO: add authorized addresses, create some txns to them
+
+}
+
 // TestTransactionSuperset submits a single transaction to the network,
 // followed by a transaction set containing that single transaction.
 func TestIntegrationTransactionSuperset(t *testing.T) {

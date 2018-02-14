@@ -18,6 +18,7 @@ import (
 var (
 	prefixDCO  = []byte("dco_")
 	prefixFCEX = []byte("fcex_")
+	prefixDAA  = []byte("daa_")
 
 	// BlockHeight is a bucket that stores the current block height.
 	//
@@ -52,6 +53,11 @@ var (
 	// BlockStakeOutputs is a database bucket that contains all of the unspent
 	// blockstake outputs.
 	BlockStakeOutputs = []byte("BlockStakeOutputs")
+
+	// AuthorizedAddresses is a database bucket that contains all of the authorized
+	// addresses. Create the bucket even if the authorized addresses feature is not used,
+	// we'll just leave it empty
+	AuthorizedAddresses = []byte("AuthorizedAddresses")
 )
 
 // createConsensusObjects initialzes the consensus portions of the database.
@@ -64,6 +70,7 @@ func (cs *ConsensusSet) createConsensusDB(tx *bolt.Tx) error {
 		Consistency,
 		CoinOutputs,
 		BlockStakeOutputs,
+		AuthorizedAddresses,
 	}
 	for _, bucket := range buckets {
 		_, err := tx.CreateBucket(bucket)
@@ -97,6 +104,8 @@ func (cs *ConsensusSet) createConsensusDB(tx *bolt.Tx) error {
 		cs.blockRoot.ConsensusChecksum = consensusChecksum(tx)
 	}
 	addBlockMap(tx, &cs.blockRoot)
+	// TODO: Add hardcoded authorized addresses.
+
 	return nil
 }
 
@@ -388,4 +397,69 @@ func deleteDCOBucket(tx *bolt.Tx, bh types.BlockHeight) {
 	if build.DEBUG && err != nil {
 		panic(err)
 	}
+}
+
+// addDAA adds a delayed authorized address to the consensus set
+func addDAA(tx *bolt.Tx, bh types.BlockHeight, address types.UnlockHash, authorizedIn types.TransactionID) {
+	if build.DEBUG && tx.Bucket(AuthorizedAddresses).Get(address[:]) != nil {
+		panic("daa already in the authorized addresses set")
+	}
+
+	daaBucketID := append(prefixDAA, encoding.EncUint64(uint64(bh))...)
+	daaBucket := tx.Bucket(daaBucketID)
+	// Sanity check - make sure we don't add a duplicate
+	if build.DEBUG && daaBucket.Get(address[:]) != nil {
+		panic(errRepeatInsert)
+	}
+	err := daaBucket.Put(address[:], authorizedIn[:])
+	if build.DEBUG && err != nil {
+		panic(err)
+	}
+}
+
+// removeDAA removes a delayed authorized address from the consensus set.
+func removeDAA(tx *bolt.Tx, bh types.BlockHeight, address types.UnlockHash) {
+	bucketID := append(prefixDAA, encoding.Marshal(bh)...)
+	// Sanity check - Make sure this item is in the db
+	daaBucket := tx.Bucket(bucketID)
+	if build.DEBUG && daaBucket.Get(address[:]) == nil {
+		panic("nil daa")
+	}
+	err := daaBucket.Delete(address[:])
+	if build.DEBUG && err != nil {
+		panic(err)
+	}
+}
+
+// createDAABucket creates a bucket for the delayed authorized addresses at the input height
+func createDAABucket(tx *bolt.Tx, bh types.BlockHeight) {
+	bucketID := append(prefixDAA, encoding.Marshal(bh)...)
+	_, err := tx.CreateBucket(bucketID)
+	if build.DEBUG && err != nil {
+		panic(err)
+	}
+}
+
+// deleteDAABucket deletes the bucket that held a set of delayed authorized addresses.
+func deleteDAABucket(tx *bolt.Tx, bh types.BlockHeight) {
+	// Delete the bucket.
+	bucketID := append(prefixDAA, encoding.Marshal(bh)...)
+	bucket := tx.Bucket(bucketID)
+	if build.DEBUG && bucket == nil {
+		panic(errNilBucket)
+	}
+
+	err := tx.DeleteBucket(bucketID)
+	if build.DEBUG && err != nil {
+		panic(err)
+	}
+}
+
+// isAuthroizedAddress checks if an address is available in the authorized address bucket
+func isAuthorizedAddress(tx *bolt.Tx, address types.UnlockHash) bool {
+	addrBytes := tx.Bucket(AuthorizedAddresses).Get(address[:])
+	if addrBytes == nil {
+		return false
+	}
+	return true
 }

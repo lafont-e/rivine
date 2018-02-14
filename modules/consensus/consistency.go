@@ -37,6 +37,7 @@ func consensusChecksum(tx *bolt.Tx) crypto.Hash {
 		tx.Bucket(BlockPath),
 		tx.Bucket(CoinOutputs),
 		tx.Bucket(BlockStakeOutputs),
+		tx.Bucket(AuthorizedAddresses),
 	}
 	for i := range consensusSetBuckets {
 		err := consensusSetBuckets[i].ForEach(func(k, v []byte) error {
@@ -55,7 +56,7 @@ func consensusChecksum(tx *bolt.Tx) crypto.Hash {
 	err := tx.ForEach(func(name []byte, b *bolt.Bucket) error {
 		// If the bucket is not a delayed coin output bucket or a file
 		// contract expiration bucket, skip.
-		if !bytes.HasPrefix(name, prefixDCO) && !bytes.HasPrefix(name, prefixFCEX) {
+		if !bytes.HasPrefix(name, prefixDCO) && !bytes.HasPrefix(name, prefixFCEX) && !bytes.HasPrefix(name, prefixDAA) {
 			return nil
 		}
 

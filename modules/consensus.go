@@ -167,6 +167,9 @@ type (
 		// run any required closing routines.
 		Close() error
 
+		// IsAuthorizedAddress
+		IsAuthorizedAddress(types.UnlockHash) bool
+
 		// ConsensusSetSubscribe adds a subscriber to the list of subscribers
 		// and gives them every consensus change that has occurred since the
 		// change with the provided id. There are a few special cases,

@@ -47,6 +47,30 @@ func NewBlockValidator(consensusSet *ConsensusSet) stdBlockValidator {
 	}
 }
 
+// checkBlockAddresses checks that all addresses in the block on the receiving end of a txn
+// are currently authorized
+func (bv stdBlockValidator) checkBlockAddresses(b types.Block) bool {
+	if types.AuthorizedAddresses {
+		return true
+	}
+
+	for _, txn := range b.Transactions {
+		for _, co := range txn.CoinOutputs {
+			if !bv.cs.IsAuthorizedAddress(co.UnlockHash) {
+				return false
+			}
+		}
+
+		for _, bso := range txn.BlockStakeOutputs {
+			if !bv.cs.IsAuthorizedAddress(bso.UnlockHash) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // checkMinerPayouts checks a block creator payouts to the block's subsidy and
 // returns true if they are equal.
 func checkMinerPayouts(b types.Block) bool {
@@ -142,6 +166,10 @@ func (bv stdBlockValidator) ValidateBlock(b types.Block, minTimestamp types.Time
 	// Verify that the miner payouts are valid.
 	if !checkMinerPayouts(b) {
 		return errBadMinerPayouts
+	}
+
+	if !bv.checkBlockAddresses(b) {
+		return errUnauthorizedAddress
 	}
 
 	// Check if the block is in the near future, but too far to be acceptable.

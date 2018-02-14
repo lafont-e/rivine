@@ -17,6 +17,7 @@ var (
 	errSiacoinInputOutputMismatch    = errors.New("coin inputs do not equal coin outputs for transaction")
 	errBlockStakeInputOutputMismatch = errors.New("blockstake inputs do not equal blockstake outputs for transaction")
 	errWrongUnlockConditions         = errors.New("transaction contains incorrect unlock conditions")
+	errUnauthorizedAddress           = errors.New("transaction is trying to send to an unauthorized address")
 )
 
 // validCoins checks that the coin inputs and outputs are valid in the
@@ -77,6 +78,29 @@ func validBlockStakes(tx *bolt.Tx, t types.Transaction) (err error) {
 	return
 }
 
+// validAddresses checks that all the addresses that we send to are valid
+// in the context of the consensus set
+func validAddresses(tx *bolt.Tx, t types.Transaction) (err error) {
+	if !types.AuthorizedAddresses {
+		return nil
+	}
+
+	// check all addresses coins were sent to
+	for _, co := range t.CoinOutputs {
+		if !isAuthorizedAddress(tx, co.UnlockHash) {
+			return errUnauthorizedAddress
+		}
+	}
+	// check all addresses block stakes were sent to
+	for _, bso := range t.BlockStakeOutputs {
+		if !isAuthorizedAddress(tx, bso.UnlockHash) {
+			return errUnauthorizedAddress
+		}
+	}
+
+	return nil
+}
+
 // validTransaction checks that all fields are valid within the current
 // consensus state. If not an error is returned.
 func validTransaction(tx *bolt.Tx, t types.Transaction) error {
@@ -94,6 +118,10 @@ func validTransaction(tx *bolt.Tx, t types.Transaction) error {
 		return err
 	}
 	err = validBlockStakes(tx, t)
+	if err != nil {
+		return err
+	}
+	err = validAddresses(tx, t)
 	if err != nil {
 		return err
 	}

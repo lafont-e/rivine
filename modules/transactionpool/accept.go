@@ -35,6 +35,7 @@ var (
 	errFullTransactionPool = errors.New("transaction pool cannot accept more transactions")
 	errLowMinerFees        = errors.New("transaction set needs more miner fees to be accepted")
 	errEmptySet            = errors.New("transaction set is empty")
+	errUnauthorizedAddress = errors.New("transaction is trying to send to an unauthorized address")
 
 	TransactionMinFee = types.OneCoin.Mul64(1)
 )
@@ -92,6 +93,33 @@ func (tp *TransactionPool) checkMinerFees(ts []types.Transaction) error {
 	return nil
 }
 
+// checkAddresses checks that all recipient addresses in the transactions
+// are verified
+func (tp *TransactionPool) checkAddresses(ts []types.Transaction) error {
+	// This check can't fail if we don't use authorized addresses
+	if !types.AuthorizedAddresses {
+		return nil
+	}
+
+	// TODO: This check will likely not apply for a transaction which actaully authorizes an address
+	// But the structure of those still needs to be defined
+
+	for _, txn := range ts {
+		for _, co := range txn.CoinOutputs {
+			if !tp.consensusSet.IsAuthorizedAddress(co.UnlockHash) {
+				return errUnauthorizedAddress
+			}
+		}
+		for _, bso := range txn.BlockStakeOutputs {
+			if !tp.consensusSet.IsAuthorizedAddress(bso.UnlockHash) {
+				return errUnauthorizedAddress
+			}
+		}
+	}
+
+	return nil
+}
+
 // checkTransactionSetComposition checks if the transaction set is valid given
 // the state of the pool. It does not check that each individual transaction
 // would be legal in the next block, but does check things like miner fees and
@@ -107,6 +135,12 @@ func (tp *TransactionPool) checkTransactionSetComposition(ts []types.Transaction
 	// Check that the transaction set has enough fees to justify adding it to
 	// the transaction list.
 	err := tp.checkMinerFees(ts)
+	if err != nil {
+		return err
+	}
+
+	// Check whether a transaction only spends to authorized addresses, if applicable
+	err = tp.checkAddresses(ts)
 	if err != nil {
 		return err
 	}
