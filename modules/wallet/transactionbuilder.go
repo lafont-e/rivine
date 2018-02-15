@@ -164,7 +164,7 @@ func (tb *transactionBuilder) FundCoins(amount types.Currency) error {
 
 	// Create a refund output if needed.
 	if amount.Cmp(fund) != 0 {
-		refundUnlockConditions, err := tb.wallet.nextPrimarySeedAddress()
+		refundUnlockConditions, err := tb.getRespendUnlockConditions()
 		if err != nil {
 			return err
 		}
@@ -236,7 +236,7 @@ func (tb *transactionBuilder) FundBlockStakes(amount types.Currency) error {
 
 	// Create a refund output if needed.
 	if amount.Cmp(fund) != 0 {
-		refundUnlockConditions, err := tb.wallet.nextPrimarySeedAddress()
+		refundUnlockConditions, err := tb.getRespendUnlockConditions()
 		if err != nil {
 			return err
 		}
@@ -459,6 +459,16 @@ func (tb *transactionBuilder) View() (types.Transaction, []types.Transaction) {
 // transactions that have been automatically added by the builder.
 func (tb *transactionBuilder) ViewAdded() (newParents, coinInputs, blockstakeInputs, transactionSignatures []int) {
 	return tb.newParents, tb.coinInputs, tb.blockstakeInputs, tb.transactionSignatures
+}
+
+// getRespendUnlockConditions returns a valid respend address for the wallet
+func (tb *transactionBuilder) getRespendUnlockConditions() (types.UnlockConditions, error) {
+	if !types.AuthorizedAddresses {
+		return tb.wallet.nextPrimarySeedAddress()
+	}
+	// Getting a respend address implies that we have too much coin input, therefore we have at least 1 CoinInput
+	txn, _ := tb.View()
+	return txn.CoinInputs[0].UnlockConditions, nil
 }
 
 // RegisterTransaction takes a transaction and its parents and returns a
