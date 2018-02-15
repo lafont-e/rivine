@@ -141,10 +141,10 @@ func New(gateway modules.Gateway, bootstrap bool, persistDir string) (*Consensus
 		return nil, err
 	}
 
-	// TODO: ENSURE INITIAL ADDRESSES ARE SET HERE
 	// Ensure that the intial addresses are marked as authorized
 	// This needs to be done now or they might cause blocks to get
 	// rejected during the IBD
+	cs.ensureInitialAuthorizedAddresses()
 
 	go func() {
 		// Sync with the network. Don't sync if we are testing because
@@ -187,6 +187,36 @@ func New(gateway modules.Gateway, bootstrap bool, persistDir string) (*Consensus
 	}()
 
 	return cs, nil
+}
+
+// ensureInitialAuthorizedAddresses ensures that all the hardcoded initial authorized addresses are
+// present in the consensusDB, if authorized addresses are enabled
+func (cs *ConsensusSet) ensureInitialAuthorizedAddresses() {
+	if !types.AuthorizedAddresses {
+		return
+	}
+
+	cs.log.Debugln("Ensureing the initial authorized addresses...")
+
+	// The update will only need to happen when the consensusdb is intialized for the first time,
+	// after that all the initial addresses will already be present. However, since this method must
+	// be called as part of the conensus intialization, there should not be any other operation on the
+	// consensus set db yet so there is no value in doing a view and then an update of the addresses which are
+	// somehow not present
+	_ = cs.db.Update(func(tx *bolt.Tx) error {
+		for _, addr := range types.InitialAddresses {
+			if isAuthorizedAddress(tx, addr) {
+				cs.log.Debugln("Initial authorized address", addr.String(), "already present.")
+				continue
+			}
+			// TODO: What txID should we add here, if any?
+			cs.log.Debugln("Adding initial address", addr.String(), "to the authorized addresses")
+			addAuthorizedAddress(tx, addr, types.TransactionID{})
+		}
+		return nil
+	})
+
+	cs.log.Debugln("Ensured initial addresses")
 }
 
 // BlockAtHeight returns the block at a given height.

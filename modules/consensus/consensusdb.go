@@ -457,9 +457,22 @@ func deleteDAABucket(tx *bolt.Tx, bh types.BlockHeight) {
 
 // isAuthroizedAddress checks if an address is available in the authorized address bucket
 func isAuthorizedAddress(tx *bolt.Tx, address types.UnlockHash) bool {
-	addrBytes := tx.Bucket(AuthorizedAddresses).Get(address[:])
+	addrBytes, _ := tx.Bucket(AuthorizedAddresses).Cursor().Seek(address[:])
 	if addrBytes == nil {
 		return false
 	}
 	return true
+}
+
+// addAuthorizedAddress adds an autorized address to the consensus DatabaseFilename
+func addAuthorizedAddress(tx *bolt.Tx, address types.UnlockHash, txID types.TransactionID) {
+	authorizedAddresses := tx.Bucket(AuthorizedAddresses)
+	// Sanity check - should not add a duplicate key
+	if build.DEBUG && authorizedAddresses.Get(address[:]) != nil {
+		panic("repeat authorized address")
+	}
+	err := authorizedAddresses.Put(address[:], txID[:])
+	if build.DEBUG && err != nil {
+		panic(err)
+	}
 }
